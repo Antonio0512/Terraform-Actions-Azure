@@ -5,21 +5,21 @@ terraform {
       version = "=3.59.0"
     }
   }
-
+  
   backend "azurerm" {
     resource_group_name  = "StorageRG"
-    storage_account_name = "taskboardstorage"
+    storage_account_name = "taskboardstoragemarto"
     container_name       = "taskboardcontainer"
     key                  = "terraform.tfstate"
   }
+  
 }
 
-
-
-
+# Configure the Microsoft Azure Provider
 provider "azurerm" {
   features {}
 }
+
 
 resource "random_integer" "ri" {
   min = 10000
@@ -32,8 +32,7 @@ resource "azurerm_resource_group" "rg" {
   location = var.resource_group_location
 }
 
-# Create a service plan
-resource "azurerm_service_plan" "appserviceplan" {
+resource "azurerm_service_plan" "appsp" {
   name                = "${var.app_service_plan_name}-${random_integer.ri.result}"
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
@@ -41,12 +40,11 @@ resource "azurerm_service_plan" "appserviceplan" {
   sku_name            = "F1"
 }
 
-# Create a Linux web app
 resource "azurerm_linux_web_app" "appservice" {
   name                = "${var.app_service_name}-${random_integer.ri.result}"
   resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_service_plan.appserviceplan.location
-  service_plan_id     = azurerm_service_plan.appserviceplan.id
+  location            = azurerm_service_plan.appsp.location
+  service_plan_id     = azurerm_service_plan.appsp.id
 
   site_config {
     application_stack {
@@ -58,26 +56,10 @@ resource "azurerm_linux_web_app" "appservice" {
   connection_string {
     name  = "DefaultConnection"
     type  = "SQLAzure"
-    value = <<CONNECTION_STRING
-	Data Source=tcp:${azurerm_mssql_server.sqlserver.fully_qualified_domain_name},1433;
-	Initial Catalog=${azurerm_mssql_database.sqldatabase.name};
-	User ID=${azurerm_mssql_server.sqlserver.administrator_login};
-	Password=${azurerm_mssql_server.sqlserver.administrator_login_password};
-	Trusted_Connection = False;
-	MultipleActiveResultSets=True;
-CONNECTION_STRING
+    value = "Data Source=tcp:${azurerm_mssql_server.sqlserver.fully_qualified_domain_name},1433;Initial Catalog=${azurerm_mssql_database.sql.name};User ID=${azurerm_mssql_server.sqlserver.administrator_login};Password=${azurerm_mssql_server.sqlserver.administrator_login_password};Trusted_Connection=False; MultipleActiveResultSets=True;"
   }
 }
 
-# Connect to GitHub repo
-resource "azurerm_app_service_source_control" "appgit" {
-  app_id                 = azurerm_linux_web_app.appservice.id
-  repo_url               = var.repo_URL
-  branch                 = "main"
-  use_manual_integration = true
-}
-
-# Create a database server
 resource "azurerm_mssql_server" "sqlserver" {
   name                         = "${var.sql_server_name}-${random_integer.ri.result}"
   resource_group_name          = azurerm_resource_group.rg.name
@@ -87,8 +69,7 @@ resource "azurerm_mssql_server" "sqlserver" {
   administrator_login_password = var.sql_admin_password
 }
 
-# Create a database
-resource "azurerm_mssql_database" "sqldatabase" {
+resource "azurerm_mssql_database" "sql" {
   name           = "${var.sql_database_name}${random_integer.ri.result}"
   server_id      = azurerm_mssql_server.sqlserver.id
   collation      = "SQL_Latin1_General_CP1_CI_AS"
@@ -97,10 +78,17 @@ resource "azurerm_mssql_database" "sqldatabase" {
   zone_redundant = false
 }
 
-# Configure the database firewall
-resource "azurerm_mssql_firewall_rule" "firewall" {
+resource "azurerm_mssql_firewall_rule" "example" {
   name             = "${var.firewall_rule_name}${random_integer.ri.result}"
   server_id        = azurerm_mssql_server.sqlserver.id
   start_ip_address = "0.0.0.0"
   end_ip_address   = "0.0.0.0"
+}
+
+
+resource "azurerm_app_service_source_control" "sourcecontrol" {
+  app_id                 = azurerm_linux_web_app.appservice.id
+  repo_url               = var.repo_URL
+  branch                 = "main"
+  use_manual_integration = true
 }
