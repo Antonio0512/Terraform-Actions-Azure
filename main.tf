@@ -1,3 +1,5 @@
+# We strongly recommend using the required_providers block to set the
+# Azure Provider source and version being used
 terraform {
   required_providers {
     azurerm = {
@@ -8,7 +10,7 @@ terraform {
   
   backend "azurerm" {
     resource_group_name  = "StorageRG"
-    storage_account_name = "taskboardstorage"
+    storage_account_name = "taskboardstoragemarto"
     container_name       = "taskboardcontainer"
     key                  = "terraform.tfstate"
   }
