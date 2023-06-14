@@ -1,4 +1,4 @@
-name: 'Terraform test'
+name: 'Terraform'
 
 on:
   push:
@@ -7,9 +7,15 @@ on:
 permissions:
   contents: read
 
+env:
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET}}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+
 jobs:
   terraform:
-    name: 'Terraform Test'
+    name: 'Terraform'
     runs-on: ubuntu-latest
     environment: production
 
@@ -25,7 +31,7 @@ jobs:
 
     # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
     - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v1
+      uses: hashicorp/setup-terraform@v2
       with:
         terraform_version: 1.1.7
 
@@ -33,10 +39,12 @@ jobs:
     - name: Terraform Init
       run: terraform init
 
+    # Login to Azure via Azure CLI
+    - name: Login via Azure CLI
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
     # Checks that all Terraform configuration files adhere to a canonical format
-    - name: Terraform Format
-      run: terraform fmt -check -recursive
-    
-    # Validate Terraform files
-    - name: Terraform validate
-      run: terraform validate
+    - name: Terraform Apply
+      run: terraform apply -auto-approve
